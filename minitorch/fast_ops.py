@@ -328,7 +328,7 @@ def _tensor_matrix_multiply(
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
 
     # TODO: Implement for Task 3.2.
-    raise NotImplementedError("Need to implement for Task 3.2")
+    # raise NotImplementedError("Need to implement for Task 3.2")
     """
     read in all of a in shared memory
     read in all of b in shared memory
@@ -340,6 +340,37 @@ def _tensor_matrix_multiply(
 
 
     """
+    assert a_shape[-1] == b_shape[-2]
+
+    out_batch_stride = out_strides[0] if len(out_shape) > 2 else 0
+
+    batch_size = out_shape[0] if len(out_shape) > 2 else 1
+    out_rows, out_cols = out_shape[-2], out_shape[-1]
+    common_dim = a_shape[-1]
+
+    for batch in prange(batch_size):
+        for row in prange(out_rows):
+            for col in range(out_cols):
+                out_offset = (
+                    batch * out_batch_stride + row * out_strides[-2] + col * out_strides[-1]
+                )
+
+                result = 0.0
+
+                for k in range(common_dim):
+                    a_offset = (
+                        batch * a_batch_stride
+                        + row * a_strides[-2]
+                        + k * a_strides[-1]
+                    )
+                    b_offset = (
+                        batch * b_batch_stride
+                        + k * b_strides[-2]
+                        + col * b_strides[-1]
+                    )
+                    result += a_storage[a_offset] * b_storage[b_offset]
+
+                    out[out_offset] = result
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
