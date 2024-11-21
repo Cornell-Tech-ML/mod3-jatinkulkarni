@@ -30,6 +30,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Function for njit"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -179,8 +180,8 @@ def tensor_map(
             return
 
         for i in prange(len(out)):
-            out_index: Index = np.empty(MAX_DIMS, np.int16)
-            in_index: Index = np.empty(MAX_DIMS, np.int16)
+            out_index: Index = np.empty(MAX_DIMS, np.int32)
+            in_index: Index = np.empty(MAX_DIMS, np.int32)
             to_index(i, out_shape, out_index)
             broadcast_index(out_index, out_shape, in_shape, in_index)
             o = index_to_position(out_index, out_strides)
@@ -282,24 +283,24 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        # raise NotImplementedError("Need to implement for Task 3.1")g
-            for i in prange(len(out)):
-                out_index = np.empty(len(out_shape), np.int32)
-                reduce_size = a_shape[reduce_dim]
-                to_index(i, out_shape, out_index)
-                o = index_to_position(out_index, out_strides)
-                acc = a_storage[index_to_position(out_index, a_strides)]
-                out_index[reduce_dim] = 0
-                
-                for s in range(1, reduce_size):
-                    out_index[reduce_dim] = s
-                    a_offset = 0
+        # raise NotImplementedError("Need to implement for Task 3.1")
+        for i in prange(len(out)):
+            out_index = np.empty(len(out_shape), np.int32)
+            reduce_size = a_shape[reduce_dim]
+            to_index(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            acc = a_storage[index_to_position(out_index, a_strides)]
+            out_index[reduce_dim] = 0
 
-                    for dim in range(len(a_shape)):
-                        a_offset += out_index[dim] * a_strides[dim]
-                    acc = fn(acc, a_storage[a_offset])
+            for s in range(1, reduce_size):
+                out_index[reduce_dim] = s
+                a_offset = 0
 
-                out[o] = acc
+                for dim in range(len(a_shape)):
+                    a_offset += out_index[dim] * a_strides[dim]
+                acc = fn(acc, a_storage[a_offset])
+
+            out[o] = acc
 
     return njit(_reduce, parallel=True)  # type: ignore
 

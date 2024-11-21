@@ -515,9 +515,9 @@ def _tensor_matrix_multiply(
     for k in range((a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM):
         if i < a_shape[-2] and k * BLOCK_DIM + pj < a_shape[-1]:
             a_offset = (
-                batch * a_strides[0] +
-                i * a_strides[-2] +
-                (k * BLOCK_DIM + pj) * a_strides[-1]
+                batch * a_batch_stride
+                + i * a_strides[-2]
+                + (k * BLOCK_DIM + pj) * a_strides[-1]
             )
             a_shared[pi, pj] = a_storage[a_offset]
         else:
@@ -525,9 +525,9 @@ def _tensor_matrix_multiply(
 
         if j < b_shape[-1] and k * BLOCK_DIM + pi < b_shape[-2]:
             b_offset = (
-                batch * b_strides[0] +
-                (k * BLOCK_DIM + pi) * b_strides[-2] +
-                j * b_strides[-1]
+                batch * b_batch_stride
+                + (k * BLOCK_DIM + pi) * b_strides[-2]
+                + j * b_strides[-1]
             )
             b_shared[pi, pj] = b_storage[b_offset]
         else:
@@ -541,11 +541,7 @@ def _tensor_matrix_multiply(
         cuda.syncthreads()
 
     if i < out_shape[-2] and j < out_shape[-1]:
-        out_offset = (
-            batch * out_strides[0] +
-            i * out_strides[-2] +
-            j * out_strides[-1]
-        )
+        out_offset = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
         out[out_offset] = result
 
 
