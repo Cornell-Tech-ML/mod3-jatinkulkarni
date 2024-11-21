@@ -174,7 +174,22 @@ def tensor_map(
         in_index = cuda.local.array(MAX_DIMS, numba.int32)
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
         # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        # raise NotImplementedError("Need to implement for Task 3.3")
+
+        # Ensure index is within bounds
+        if i < out_size:
+            # Compute the multi-dimensional indices for the output tensor
+            to_index(i, out_shape, out_index)
+
+            # Broadcast indices for the input tensor
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+
+            # Compute storage positions
+            out_pos = index_to_position(out_index, out_strides)
+            in_pos = index_to_position(in_index, in_strides)
+
+            # Apply the function and store in output
+            out[out_pos] = fn(in_storage[in_pos])
 
     return cuda.jit()(_map)  # type: ignore
 
@@ -217,7 +232,24 @@ def tensor_zip(
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        # raise NotImplementedError("Need to implement for Task 3.3")
+
+        # Ensure index is within bounds
+        if i < out_size:
+            # Compute the multi-dimensional indices for the output tensor
+            to_index(i, out_shape, out_index)
+
+            # Broadcast indices for the input tensors
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+
+            # Compute storage positions
+            out_pos = index_to_position(out_index, out_strides)
+            a_pos = index_to_position(a_index, a_strides)
+            b_pos = index_to_position(b_index, b_strides)
+
+            # Apply the function and store in output
+            out[out_pos] = fn(a_storage[a_pos], b_storage[b_pos])
 
     return cuda.jit()(_zip)  # type: ignore
 
@@ -250,7 +282,25 @@ def _sum_practice(out: Storage, a: Storage, size: int) -> None:
     pos = cuda.threadIdx.x
 
     # TODO: Implement for Task 3.3.
-    raise NotImplementedError("Need to implement for Task 3.3")
+    # raise NotImplementedError("Need to implement for Task 3.3")
+    if i < size:
+        cache[pos] = a[i]
+    else:
+        cache[pos] = 0.0
+    cuda.syncthreads()
+
+    # Perform reduction in shared memory
+    stride = 1
+    while stride < BLOCK_DIM:
+        index = 2 * stride * pos
+        if index + stride < BLOCK_DIM:
+            cache[index] += cache[index + stride]
+        stride *= 2
+        cuda.syncthreads()
+
+    # Write the result for this block to the output
+    if pos == 0:
+        out[cuda.blockIdx.x] = cache[0]
 
 
 jit_sum_practice = cuda.jit()(_sum_practice)
@@ -301,7 +351,38 @@ def tensor_reduce(
         pos = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        raise NotImplementedError("Need to implement for Task 3.3")
+        # raise NotImplementedError("Need to implement for Task 3.3")
+        cache[pos] = reduce_value
+
+        # Loop over the elements in the reduction dimension
+        for j in range(a_shape[reduce_dim]):
+            if pos < out_size:
+                # Compute the input index
+                for k in range(len(out_index)):
+                    out_index[k] = 0
+                out_index[reduce_dim] = j
+
+                # Compute storage positions
+                in_pos = index_to_position(out_index, a_strides)
+
+                # Perform reduction
+                cache[pos] = fn(cache[pos], a_storage[in_pos])
+
+        cuda.syncthreads()
+
+        # Perform reduction in shared memory
+        stride = 1
+        while stride < BLOCK_DIM:
+            index = 2 * stride * pos
+            if index + stride < BLOCK_DIM:
+                cache[index] = fn(cache[index], cache[index + stride])
+            stride *= 2
+            cuda.syncthreads()
+
+        # Write the result to the output
+        if pos == 0:
+            out[out_pos] = cache[0]
+        
 
     return jit(_reduce)  # type: ignore
 
