@@ -171,9 +171,16 @@ def tensor_map(
         # TODO: Implement for Task 3.1.
         # raise NotImplementedError("Need to implement for Task 3.1")
 
+        if np.array_equal(out_strides, in_strides) and np.array_equal(
+            out_shape, in_shape
+        ):
+            for i in prange(len(out)):
+                out[i] = fn(in_storage[i])
+            return
+
         for i in prange(len(out)):
-            out_index: Index = np.zeros(MAX_DIMS, np.int16)
-            in_index: Index = np.zeros(MAX_DIMS, np.int16)
+            out_index: Index = np.empty(MAX_DIMS, np.int16)
+            in_index: Index = np.empty(MAX_DIMS, np.int16)
             to_index(i, out_shape, out_index)
             broadcast_index(out_index, out_shape, in_shape, in_index)
             o = index_to_position(out_index, out_strides)
@@ -220,10 +227,22 @@ def tensor_zip(
     ) -> None:
         # TODO: Implement for Task 3.1.
         # raise NotImplementedError("Need to implement for Task 3.1")
+        if (
+            np.array_equal(out_strides, a_strides)
+            and np.array_equal(out_strides, b_strides)
+            and np.array_equal(out_shape, a_shape)
+            and np.array_equal(out_shape, b_shape)
+        ):
+            for i in prange(len(out)):
+                out[i] = fn(a_storage[i], b_storage[i])
+            return
+
+
+
         for i in prange(len(out)):
-            out_index: Index = np.zeros(MAX_DIMS, np.int32)
-            a_index: Index = np.zeros(MAX_DIMS, np.int32)
-            b_index: Index = np.zeros(MAX_DIMS, np.int32)
+            out_index = np.empty(len(out_shape), np.int32)
+            a_index = np.empty(len(a_shape), np.int32)
+            b_index = np.empty(len(b_shape), np.int32)
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
             broadcast_index(out_index, out_shape, a_shape, a_index)
@@ -269,7 +288,8 @@ def tensor_reduce(
         # TODO: Implement for Task 3.1.
         # raise NotImplementedError("Need to implement for Task 3.1")
         for i in prange(len(out)):
-            out_index: Index = np.zeros(MAX_DIMS, np.int32)
+            # out_index: Index = np.zeros(MAX_DIMS, np.int32)
+            out_index = np.empty(len(out_shape), np.int32)
             reduce_size = a_shape[reduce_dim]
             to_index(i, out_shape, out_index)
             o = index_to_position(out_index, out_strides)
@@ -344,13 +364,11 @@ def _tensor_matrix_multiply(
 
     out_batch_stride = out_strides[0] if len(out_shape) > 2 else 0
 
-    batch_size = out_shape[0] if len(out_shape) > 2 else 1
-    out_rows, out_cols = out_shape[-2], out_shape[-1]
     common_dim = a_shape[-1]
 
-    for batch in prange(batch_size):
-        for row in prange(out_rows):
-            for col in range(out_cols):
+    for batch in prange(out_shape[0]):
+        for row in range(out_shape[1]):
+            for col in range(out_shape[2]):
                 out_offset = (
                     batch * out_batch_stride + row * out_strides[-2] + col * out_strides[-1]
                 )
