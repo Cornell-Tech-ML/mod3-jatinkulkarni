@@ -282,17 +282,24 @@ def tensor_reduce(
         reduce_dim: int,
     ) -> None:
         # TODO: Implement for Task 3.1.
-        # raise NotImplementedError("Need to implement for Task 3.1")
-        for i in prange(len(out)):
-            # out_index: Index = np.zeros(MAX_DIMS, np.int32)
-            out_index = np.empty(len(out_shape), np.int32)
-            reduce_size = a_shape[reduce_dim]
-            to_index(i, out_shape, out_index)
-            o = index_to_position(out_index, out_strides)
-            for s in range(reduce_size):
-                out_index[reduce_dim] = s
-                j = index_to_position(out_index, a_strides)
-                out[o] = fn(out[o], a_storage[j])
+        # raise NotImplementedError("Need to implement for Task 3.1")g
+            for i in prange(len(out)):
+                out_index = np.empty(len(out_shape), np.int32)
+                reduce_size = a_shape[reduce_dim]
+                to_index(i, out_shape, out_index)
+                o = index_to_position(out_index, out_strides)
+                acc = a_storage[index_to_position(out_index, a_strides)]
+                out_index[reduce_dim] = 0
+                
+                for s in range(1, reduce_size):
+                    out_index[reduce_dim] = s
+                    a_offset = 0
+
+                    for dim in range(len(a_shape)):
+                        a_offset += out_index[dim] * a_strides[dim]
+                    acc = fn(acc, a_storage[a_offset])
+
+                out[o] = acc
 
     return njit(_reduce, parallel=True)  # type: ignore
 
@@ -382,7 +389,7 @@ def _tensor_matrix_multiply(
                     )
                     result += a_storage[a_offset] * b_storage[b_offset]
 
-                    out[out_offset] = result
+                out[out_offset] = result
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
