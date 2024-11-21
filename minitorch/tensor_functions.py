@@ -110,6 +110,7 @@ class All(Function):
         else:
             return a.f.mul_reduce(a.contiguous().view(int(operators.prod(a.shape))), 0)
 
+
 class Mul(Function):
     @staticmethod
     def forward(ctx: Context, a: Tensor, b: Tensor) -> Tensor:
@@ -117,6 +118,7 @@ class Mul(Function):
         # ASSIGN2.3
         ctx.save_for_backward(a, b)
         return a.f.mul_zip(a, b)
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -128,6 +130,7 @@ class Mul(Function):
             grad_output.f.mul_zip(b, grad_output),
             grad_output.f.mul_zip(a, grad_output),
         )
+
     # END ASSIGN2.4
 
 
@@ -139,6 +142,7 @@ class Sigmoid(Function):
         out = t1.f.sigmoid_map(t1)
         ctx.save_for_backward(out)
         return out
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -147,6 +151,7 @@ class Sigmoid(Function):
         # ASSIGN2.4
         sigma: Tensor = ctx.saved_values[0]
         return sigma * (-sigma + 1.0) * grad_output
+
     # END ASSIGN2.4
 
 
@@ -157,6 +162,7 @@ class ReLU(Function):
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         return t1.f.relu_map(t1)
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -165,6 +171,7 @@ class ReLU(Function):
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.relu_back_zip(a, grad_output)
+
     # END ASSIGN2.4
 
 
@@ -175,6 +182,7 @@ class Log(Function):
         # ASSIGN2.3
         ctx.save_for_backward(t1)
         return t1.f.log_map(t1)
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -183,6 +191,7 @@ class Log(Function):
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.log_back_zip(a, grad_output)
+
     # END ASSIGN2.4
 
 
@@ -194,6 +203,7 @@ class Exp(Function):
         out = t1.f.exp_map(t1)
         ctx.save_for_backward(out)
         return out
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -202,6 +212,7 @@ class Exp(Function):
         # ASSIGN2.4
         (a,) = ctx.saved_values
         return grad_output.f.mul_zip(a, grad_output)
+
     # END ASSIGN2.4
 
 
@@ -212,6 +223,7 @@ class LT(Function):
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.lt_zip(a, b)
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -220,6 +232,7 @@ class LT(Function):
         # ASSIGN2.4
         a_shape, b_shape = ctx.saved_values
         return zeros(a_shape), zeros(b_shape)
+
     # END ASSIGN2.4
 
 
@@ -230,6 +243,7 @@ class EQ(Function):
         # ASSIGN2.3
         ctx.save_for_backward(a.shape, b.shape)
         return a.f.eq_zip(a, b)
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -246,9 +260,10 @@ class IsClose(Function):
         """Forward method for IsClose"""
         # ASSIGN2.3
         return a.f.is_close_zip(a, b)
+
     # END ASSIGN2.3
 
-     # No backward function for IsClose
+    # No backward function for IsClose
     @staticmethod
     def backward(ctx: Context, grad_output: Tensor) -> Tuple[Tensor, Tensor]:
         """There is no Backward method for Tensor is_close"""
@@ -262,6 +277,7 @@ class Permute(Function):
         # ASSIGN2.3
         ctx.save_for_backward(order)
         return a._new(a._tensor.permute(*(int(order[i]) for i in range(order.size))))
+
     # END ASSIGN2.3
 
     @staticmethod
@@ -276,7 +292,9 @@ class Permute(Function):
             )
         ]
         return grad_output._new(grad_output._tensor.permute(*order2)), 0.0
+
     # END ASSIGN2.4
+
 
 class Sum(Function):
     @staticmethod
@@ -290,8 +308,6 @@ class Sum(Function):
         """Backward method for Sum"""
         a_shape, dim = ctx.saved_values
         return grad_output, 0.0
-
-
 
 
 class View(Function):
@@ -350,7 +366,6 @@ class MatMul(Function):
             grad_output.f.matrix_multiply(grad_output, transpose(t2)),
             grad_output.f.matrix_multiply(transpose(t1), grad_output),
         )
-
 
 
 # Helpers for Constructing tensors

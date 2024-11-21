@@ -16,7 +16,7 @@ def default_log_fn(epoch, total_loss, correct, losses, start_time=None):
     if epoch == 0:  # Print the table header at the start
         print(f"{'Epoch':^10} | {'Loss':^15} | {'Correct':^10} | {'Time/Epoch (s)':^15}")
         print("-" * 60)
-    
+
     if start_time:
         elapsed_time = time.time() - start_time
         time_per_epoch = elapsed_time / (epoch + 1)

@@ -187,7 +187,6 @@ def tensor_map(
             j = index_to_position(in_index, in_strides)
             out[o] = fn(in_storage[j])
 
-
     return njit(_map, parallel=True)  # type: ignore
 
 
@@ -237,8 +236,6 @@ def tensor_zip(
                 out[i] = fn(a_storage[i], b_storage[i])
             return
 
-
-
         for i in prange(len(out)):
             out_index = np.empty(len(out_shape), np.int32)
             a_index = np.empty(len(a_shape), np.int32)
@@ -250,7 +247,6 @@ def tensor_zip(
             broadcast_index(out_index, out_shape, b_shape, b_index)
             k = index_to_position(b_index, b_strides)
             out[o] = fn(a_storage[j], b_storage[k])
-
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -370,21 +366,19 @@ def _tensor_matrix_multiply(
         for row in range(out_shape[1]):
             for col in range(out_shape[2]):
                 out_offset = (
-                    batch * out_batch_stride + row * out_strides[-2] + col * out_strides[-1]
+                    batch * out_batch_stride
+                    + row * out_strides[-2]
+                    + col * out_strides[-1]
                 )
 
                 result = 0.0
 
                 for k in range(common_dim):
                     a_offset = (
-                        batch * a_batch_stride
-                        + row * a_strides[-2]
-                        + k * a_strides[-1]
+                        batch * a_batch_stride + row * a_strides[-2] + k * a_strides[-1]
                     )
                     b_offset = (
-                        batch * b_batch_stride
-                        + k * b_strides[-2]
-                        + col * b_strides[-1]
+                        batch * b_batch_stride + k * b_strides[-2] + col * b_strides[-1]
                     )
                     result += a_storage[a_offset] * b_storage[b_offset]
 
