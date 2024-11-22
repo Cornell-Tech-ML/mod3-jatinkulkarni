@@ -469,50 +469,45 @@ def _tensor_matrix_multiply(
     b_shape: Shape,
     b_strides: Strides,
 ) -> None:
-    """CUDA tensor matrix multiply function.
-
-    Requirements:
-
-    * All data must be first moved to shared memory.
-    * Only read each cell in `a` and `b` once.
-    * Only write to global memory once per kernel.
-
-    Should work for any tensor shapes that broadcast as long as ::
-
-    ```python
-    assert a_shape[-1] == b_shape[-2]
-    ```
-    Returns:
-        None : Fills in `out`
     """
+    Optimized CUDA tensor matrix multiply function using shared memory.
+
+    Parameters:
+        out, a_storage, b_storage: Global memory arrays for output, input A, and input B.
+        out_shape, a_shape, b_shape: Shapes of the output and input tensors.
+        out_strides, a_strides, b_strides: Strides for indexing the tensors.
+        out_size: Total size of the output tensor.
+
+    Functionality:
+        - Implements matrix multiplication with broadcasting and shared memory optimization.
+        - Uses CUDA threads and blocks to divide the computation and process blocks in parallel.
+    """
+    # Calculate batch stride (0 if broadcasting a single batch dimension).
     a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
-    # Batch dimension - fixed
+    # Identify which batch is being processed by this block.
     batch = cuda.blockIdx.z
 
+    # Define block size for CUDA shared memory usage.
     BLOCK_DIM = 32
+    # Allocate shared memory for sub-blocks of A and B matrices.
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
 
-    # The final position c[i, j]
+    # Calculate global positions (i, j) in the output matrix.
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
-    # The local position in the block.
+    # Calculate local positions (pi, pj) within the thread block.
     pi = cuda.threadIdx.x
     pj = cuda.threadIdx.y
 
-    # Code Plan:
-    # 1) Move across shared dimension by block dim.
-    #    a) Copy into shared memory for a matrix.
-    #    b) Copy into shared memory for b matrix
-    #    c) Compute the dot produce for position c[i, j]
-    # TODO: Implement for Task 3.4.
-    # raise NotImplementedError("Need to implement for Task 3.4")
-
+    # Initialize the result for the current thread to 0.
     result = 0.0
 
+    # Loop through the shared dimension in chunks of BLOCK_DIM.
     for k in range((a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM):
+        # Load a block of matrix A into shared memory.
         if i < a_shape[-2] and k * BLOCK_DIM + pj < a_shape[-1]:
             a_offset = (
                 batch * a_batch_stride
@@ -521,8 +516,9 @@ def _tensor_matrix_multiply(
             )
             a_shared[pi, pj] = a_storage[a_offset]
         else:
-            a_shared[pi, pj] = 0.0
+            a_shared[pi, pj] = 0.0  # Padding for out-of-bound areas.
 
+        # Load a block of matrix B into shared memory.
         if j < b_shape[-1] and k * BLOCK_DIM + pi < b_shape[-2]:
             b_offset = (
                 batch * b_batch_stride
@@ -531,15 +527,19 @@ def _tensor_matrix_multiply(
             )
             b_shared[pi, pj] = b_storage[b_offset]
         else:
-            b_shared[pi, pj] = 0.0
+            b_shared[pi, pj] = 0.0  # Padding for out-of-bound areas.
 
+        # Ensure all threads finish loading shared memory before computation.
         cuda.syncthreads()
 
+        # Perform partial dot product for the current block.
         for n in range(BLOCK_DIM):
             result += a_shared[pi, n] * b_shared[n, pj]
 
+        # Synchronize threads again before the next iteration.
         cuda.syncthreads()
 
+    # Write the computed result back to global memory, ensuring bounds are respected.
     if i < out_shape[-2] and j < out_shape[-1]:
         out_offset = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
         out[out_offset] = result
